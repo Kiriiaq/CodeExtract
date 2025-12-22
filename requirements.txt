@@ -1,0 +1,27 @@
+# CodeExtractPro v2.0 - Dependencies
+# Install with: pip install -r requirements.txt
+
+# === REQUIRED ===
+# Modern UI framework
+customtkinter>=5.2.0
+
+# === OPTIONAL BUT RECOMMENDED ===
+# VBA extraction (multiplatform)
+oletools>=0.60
+
+# Windows Excel automation (Windows only)
+pywin32>=306; sys_platform == 'win32'
+
+# === DEVELOPMENT ===
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Code quality
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# === BUILD ===
+# Create standalone executable
+pyinstaller>=5.0.0
