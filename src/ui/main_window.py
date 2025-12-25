@@ -120,15 +120,15 @@ class BaseToolFrame(ctk.CTkFrame):
         if not self._last_result:
             messagebox.showwarning("Warning", "No results to export")
             return
-        ext = {".json": "json", ".csv": "csv", ".html": "html"}.get(f".{fmt}", ".txt")
-        path = filedialog.asksaveasfilename(title=f"Export {fmt.upper()}", defaultextension=f".{fmt}")
+        path = filedialog.asksaveasfilename(title=f"Export {fmt.upper()}", defaultextension=f".{fmt}",
+                                             filetypes=[(f"{fmt.upper()} files", f"*.{fmt}"), ("All files", "*.*")])
         if path:
             r = self.export_manager.export(self._last_result, path, fmt)
             if r.success:
                 messagebox.showinfo("Success", f"Exported to {path}")
                 if self.config.config.export.open_after_export: webbrowser.open(path)
             else:
-                messagebox.showerror("Error", f"Export failed: {r.error}")
+                messagebox.showerror("Error", f"Export failed: {r.message}")
 
     def set_progress(self, val, status=None):
         self.progress_bar.set(val)
@@ -1057,7 +1057,7 @@ class MainWindow(ctk.CTk):
         """Set application icon for window and taskbar."""
         import sys
         try:
-            # Find icon path
+            # Find icon path - try multiple locations
             if getattr(sys, 'frozen', False):
                 # Running as PyInstaller bundle
                 base_path = sys._MEIPASS
@@ -1065,9 +1065,19 @@ class MainWindow(ctk.CTk):
                 # Running as script
                 base_path = Path(__file__).parent.parent.parent
 
-            icon_path = Path(base_path) / "assets" / "icon.ico"
+            # Try ico folder first, then assets folder
+            icon_paths = [
+                Path(base_path) / "ico" / "icone.ico",
+                Path(base_path) / "assets" / "icon.ico",
+            ]
 
-            if icon_path.exists():
+            icon_path = None
+            for p in icon_paths:
+                if p.exists():
+                    icon_path = p
+                    break
+
+            if icon_path and icon_path.exists():
                 # Set window icon
                 self.iconbitmap(str(icon_path))
 
