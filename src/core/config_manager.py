@@ -97,7 +97,7 @@ class ExportConfig:
 @dataclass
 class AppConfig:
     """Main application configuration."""
-    version: str = "2.0.0"
+    version: str = "1.0.0"
     first_run: bool = True
     last_used: str = ""
 
@@ -306,7 +306,7 @@ class ConfigManager:
         if 'export' in data:
             config.export = ExportConfig(**data['export'])
 
-        config.version = data.get('version', '2.0.0')
+        config.version = data.get('version', '1.0.0')
         config.first_run = data.get('first_run', False)
         config.last_used = data.get('last_used', '')
 

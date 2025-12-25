@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for CodeExtractPro v2.0 - Release Build (No Console)
+PyInstaller spec file for CodeExtractPro v1.0 - Release Build (No Console)
 """
 
 import sys
@@ -30,6 +30,35 @@ hiddenimports = [
     'enum',
     'pathlib',
     'typing',
+    # Application modules
+    'src',
+    'src.core',
+    'src.core.config_manager',
+    'src.core.export_manager',
+    'src.core.logging_system',
+    'src.core.workflow',
+    'src.modules',
+    'src.modules.vba_extractor',
+    'src.modules.python_analyzer',
+    'src.modules.folder_scanner',
+    'src.modules.vba_optimizer',
+    'src.modules.report_generator',
+    'src.ui',
+    'src.ui.main_window',
+    'src.utils',
+    'src.utils.widgets',
+    'src.utils.helpers',
+    'core',
+    'core.config_manager',
+    'core.export_manager',
+    'core.logging_system',
+    'modules',
+    'modules.vba_extractor',
+    'modules.python_analyzer',
+    'modules.folder_scanner',
+    'modules.vba_optimizer',
+    'utils',
+    'utils.widgets',
 ]
 
 # Add oletools if available
@@ -49,9 +78,9 @@ if sys.platform == 'win32':
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=['.', 'src'],
     binaries=[],
-    datas=datas,
+    datas=datas + [('src', 'src')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

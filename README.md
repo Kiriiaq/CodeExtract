@@ -1,4 +1,4 @@
-# CodeExtractPro v2.0
+# CodeExtractPro v1.0
 
 **Professional Code Extraction & Analysis Suite**
 
@@ -236,16 +236,17 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ## Changelog
 
-### v2.0.0
-- Complete UI redesign with modern CustomTkinter framework
-- Compact, scrollable interface with organized option panels
-- Added advanced options for all tools
-- Color-coded option categories for better visibility
+### v1.0.0 (Initial Release)
+- Modern GUI with CustomTkinter framework
+- **VBA Extractor**: Extract VBA code from Office files (Excel, Word, PowerPoint)
+- **Python Analyzer**: Analyze Python code structure and metrics
+- **Folder Scanner**: Scan and analyze directory structures
+- **VBA Optimizer**: Optimize and clean VBA code
 - Multi-format export (JSON, CSV, HTML)
 - Keyboard shortcuts for quick navigation
 - Dark/Light/System theme support
 - Configuration persistence and backup
-- Standalone executable builds
+- Standalone Windows executable
 
 ---
 

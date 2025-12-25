@@ -1,9 +1,9 @@
 @echo off
-REM CodeExtractPro v2.0 - Build Script for Windows
+REM CodeExtractPro v1.0 - Build Script for Windows
 REM Creates both Release and Debug executables
 
 echo ============================================
-echo  CodeExtractPro v2.0 - Build Script
+echo  CodeExtractPro v1.0 - Build Script
 echo ============================================
 echo.
 

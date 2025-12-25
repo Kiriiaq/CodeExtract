@@ -1,5 +1,5 @@
 """
-Main Window - Modern GUI for CodeExtractPro v2.0.
+Main Window - Modern GUI for CodeExtractPro v1.0.
 Each tool is completely independent with its own interface, configuration, and export capabilities.
 Features: dark/light themes, keyboard shortcuts, integrated help, tooltips.
 """
@@ -15,16 +15,36 @@ from typing import Dict, List, Optional, Any, Callable
 
 import customtkinter as ctk
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add src to path for PyInstaller compatibility
+_src_path = str(Path(__file__).parent.parent)
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
 
-from core.config_manager import get_config
-from core.export_manager import get_export_manager
-from core.logging_system import LogEntry, get_logger
-from modules.vba_extractor import VBAExtractor, ExtractionMethod
-from modules.python_analyzer import PythonAnalyzer
-from modules.folder_scanner import FolderScanner
-from modules.vba_optimizer import VBAOptimizer, OptimizationOptions
-from utils.widgets import ToolTip
+# Also add the parent of src (project root) for 'src.x' style imports
+_root_path = str(Path(__file__).parent.parent.parent)
+if _root_path not in sys.path:
+    sys.path.insert(0, _root_path)
+
+try:
+    # Try relative imports first (for running as package)
+    from ..core.config_manager import get_config
+    from ..core.export_manager import get_export_manager
+    from ..core.logging_system import LogEntry, get_logger
+    from ..modules.vba_extractor import VBAExtractor, ExtractionMethod
+    from ..modules.python_analyzer import PythonAnalyzer
+    from ..modules.folder_scanner import FolderScanner
+    from ..modules.vba_optimizer import VBAOptimizer, OptimizationOptions
+    from ..utils.widgets import ToolTip
+except ImportError:
+    # Fall back to absolute imports (for PyInstaller or direct execution)
+    from core.config_manager import get_config
+    from core.export_manager import get_export_manager
+    from core.logging_system import LogEntry, get_logger
+    from modules.vba_extractor import VBAExtractor, ExtractionMethod
+    from modules.python_analyzer import PythonAnalyzer
+    from modules.folder_scanner import FolderScanner
+    from modules.vba_optimizer import VBAOptimizer, OptimizationOptions
+    from utils.widgets import ToolTip
 
 
 class HelpSystem:
@@ -771,7 +791,7 @@ class SettingsFrame(ctk.CTkFrame):
         ab = ctk.CTkFrame(scroll)
         ab.pack(fill="x", pady=10)
         ctk.CTkLabel(ab, text="About", font=ctk.CTkFont(size=15, weight="bold")).pack(anchor="w", padx=12, pady=12)
-        ctk.CTkLabel(ab, text="CodeExtractPro v2.0.0\nProfessional Code Extraction Suite\n\nLicense: MIT", font=ctk.CTkFont(size=10), justify="left").pack(anchor="w", padx=12, pady=(0, 12))
+        ctk.CTkLabel(ab, text="CodeExtractPro v1.0.0\nProfessional Code Extraction Suite\n\nLicense: MIT", font=ctk.CTkFont(size=10), justify="left").pack(anchor="w", padx=12, pady=(0, 12))
 
     def _opt(self, k, v):
         self.config.set(f"ui.{k}", v)
@@ -850,7 +870,7 @@ class MainWindow(ctk.CTk):
         ui = self.config.config.ui
         ctk.set_appearance_mode(ui.theme)
         ctk.set_default_color_theme(ui.color_scheme)
-        self.title("CodeExtractPro v2.0 - Professional Code Extraction Suite")
+        self.title("CodeExtractPro v1.0 - Professional Code Extraction Suite")
         # Taille réduite pour une IHM plus compacte
         self.geometry(f"{min(ui.window_width, 1200)}x{min(ui.window_height, 750)}")
         self.minsize(900, 600)
@@ -859,7 +879,7 @@ class MainWindow(ctk.CTk):
         self._create_ui()
         self._shortcuts()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
-        self.logger.info("CodeExtractPro v2.0 started")
+        self.logger.info("CodeExtractPro v1.0 started")
 
     def _create_ui(self):
         main = ctk.CTkFrame(self, fg_color="transparent")
@@ -870,7 +890,7 @@ class MainWindow(ctk.CTk):
         hdr.pack_propagate(False)
         tf = ctk.CTkFrame(hdr, fg_color="transparent")
         tf.pack(side="left", padx=10, pady=4)
-        ctk.CTkLabel(tf, text="CodeExtractPro v2.0", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
+        ctk.CTkLabel(tf, text="CodeExtractPro v1.0", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
         ctk.CTkLabel(tf, text=" - Professional Code Extraction Suite", font=ctk.CTkFont(size=10), text_color=("gray50", "gray60")).pack(side="left", padx=(4, 0))
         thf = ctk.CTkFrame(hdr, fg_color="transparent")
         thf.pack(side="right", padx=10)
@@ -918,7 +938,7 @@ class MainWindow(ctk.CTk):
         dlg.grab_set()
         scroll = ctk.CTkScrollableFrame(dlg)
         scroll.pack(fill="both", expand=True, padx=15, pady=15)
-        ctk.CTkLabel(scroll, text="CodeExtractPro v2.0", font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
+        ctk.CTkLabel(scroll, text="CodeExtractPro v1.0", font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
         txt = """
 Tools:
 * VBA Extractor - Extract VBA from Office files

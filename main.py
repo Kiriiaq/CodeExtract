@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CodeExtractPro v2.0 - Professional Code Extraction & Analysis Suite
+CodeExtractPro v1.0 - Professional Code Extraction & Analysis Suite
 Main entry point for the application.
 
 Usage:
@@ -29,10 +29,22 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ========== PATH SETUP ==========
+# Get base directory (handles both normal and PyInstaller execution)
+if getattr(sys, 'frozen', False):
+    # Running as PyInstaller bundle
+    base_path = sys._MEIPASS
+else:
+    # Running as script
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
 # Add src directory to path
-src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
+src_path = os.path.join(base_path, 'src')
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
+
+# Also add base_path for package imports
+if base_path not in sys.path:
+    sys.path.insert(0, base_path)
 
 # ========== HI-DPI AWARENESS (Windows) ==========
 if sys.platform == "win32":
@@ -93,7 +105,7 @@ def install_missing_deps():
 def main():
     """Main entry point."""
     print("=" * 60)
-    print(" CodeExtractPro v2.0 - Professional Code Extraction Suite")
+    print(" CodeExtractPro v1.0 - Professional Code Extraction Suite")
     print("=" * 60)
     print()
 
@@ -111,7 +123,11 @@ def main():
         if not install_missing_deps():
             print("\nPlease install dependencies manually:")
             print("  pip install customtkinter oletools pywin32")
-            input("\nPress Enter to exit...")
+            try:
+                input("\nPress Enter to exit...")
+            except (RuntimeError, EOFError):
+                # No stdin available (PyInstaller windowed mode)
+                pass
             sys.exit(1)
 
     # Import and launch application
@@ -128,14 +144,32 @@ def main():
         print(f"\nImport error: {e}")
         print("\nPlease ensure all dependencies are installed:")
         print("  pip install -r requirements.txt")
-        input("\nPress Enter to exit...")
+        try:
+            input("\nPress Enter to exit...")
+        except (RuntimeError, EOFError):
+            # No stdin available (PyInstaller windowed mode)
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("Import Error", f"Failed to import: {e}\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt")
+            root.destroy()
         sys.exit(1)
 
     except Exception as e:
         print(f"\nError starting application: {e}")
         import traceback
         traceback.print_exc()
-        input("\nPress Enter to exit...")
+        try:
+            input("\nPress Enter to exit...")
+        except (RuntimeError, EOFError):
+            # No stdin available (PyInstaller windowed mode)
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("Error", f"Error starting application:\n{e}")
+            root.destroy()
         sys.exit(1)
 
 
