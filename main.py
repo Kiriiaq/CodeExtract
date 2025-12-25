@@ -54,6 +54,15 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+# ========== TASKBAR ICON FIX (Windows) ==========
+if sys.platform == "win32":
+    try:
+        import ctypes
+        # Set AppUserModelID for proper taskbar icon display
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("CodeExtractPro.v1.0")
+    except Exception:
+        pass
+
 
 def check_dependencies():
     """Check and report on available dependencies."""

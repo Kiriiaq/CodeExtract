@@ -389,3 +389,173 @@ class PythonAnalyzer:
             "external_dependencies": list(self.get_external_dependencies(analyses)),
             "files_with_errors": [a.path for a in analyses if a.parse_error]
         }
+
+    def extract_code_hierarchy(self, directory: str, include_subdirs: bool = True,
+                                exclude_patterns: Optional[List[str]] = None,
+                                exclude_dirs: Optional[List[str]] = None,
+                                include_content: bool = True,
+                                max_file_size_kb: int = 500) -> str:
+        """
+        Extract all Python code into a hierarchical text representation.
+
+        Args:
+            directory: Root directory to scan
+            include_subdirs: Include subdirectories
+            exclude_patterns: File patterns to exclude (e.g., ['test_*.py', '*_test.py'])
+            exclude_dirs: Directories to exclude
+            include_content: Include actual file content
+            max_file_size_kb: Maximum file size to include content (in KB)
+
+        Returns:
+            Formatted string with hierarchical code representation
+        """
+        exclude_dirs = exclude_dirs or ['__pycache__', '.git', 'venv', '.venv',
+                                         'node_modules', '.idea', '.vscode', 'dist', 'build']
+        exclude_patterns = exclude_patterns or []
+
+        output_lines = []
+        root_path = Path(directory)
+
+        # Header
+        output_lines.append("=" * 80)
+        output_lines.append(f"  CODE EXTRACTION - {root_path.name}")
+        output_lines.append(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        output_lines.append("=" * 80)
+        output_lines.append("")
+
+        # Collect files
+        files = []
+        if include_subdirs:
+            for root, dirs, filenames in os.walk(directory):
+                dirs[:] = [d for d in dirs if d not in exclude_dirs]
+                for filename in filenames:
+                    if filename.endswith('.py'):
+                        if not self._matches_exclude_pattern(filename, exclude_patterns):
+                            files.append(os.path.join(root, filename))
+        else:
+            for filename in os.listdir(directory):
+                if filename.endswith('.py'):
+                    if not self._matches_exclude_pattern(filename, exclude_patterns):
+                        files.append(os.path.join(directory, filename))
+
+        files.sort()
+
+        # Generate table of contents
+        output_lines.append("TABLE OF CONTENTS")
+        output_lines.append("-" * 40)
+        for i, file_path in enumerate(files, 1):
+            rel_path = os.path.relpath(file_path, directory)
+            output_lines.append(f"  {i:3}. {rel_path}")
+        output_lines.append("")
+        output_lines.append(f"Total: {len(files)} Python files")
+        output_lines.append("")
+
+        # Process each file
+        for file_path in files:
+            rel_path = os.path.relpath(file_path, directory)
+            file_size = os.path.getsize(file_path)
+
+            output_lines.append("")
+            output_lines.append("=" * 80)
+            output_lines.append(f"FILE: {rel_path}")
+            output_lines.append(f"Size: {file_size:,} bytes | Path: {file_path}")
+            output_lines.append("=" * 80)
+
+            # Analyze file structure
+            analysis = self.analyze_file(file_path)
+
+            # Show structure summary
+            output_lines.append("")
+            output_lines.append("STRUCTURE:")
+            output_lines.append(f"  Lines: {analysis.line_count} (Code: {analysis.code_lines}, Comments: {analysis.comment_lines}, Blank: {analysis.blank_lines})")
+
+            if analysis.imports or analysis.from_imports:
+                output_lines.append(f"  Imports: {', '.join(analysis.imports + analysis.from_imports)}")
+
+            if analysis.classes:
+                output_lines.append(f"  Classes ({len(analysis.classes)}):")
+                for cls in analysis.classes:
+                    bases = f"({', '.join(cls.bases)})" if cls.bases else ""
+                    output_lines.append(f"    - {cls.name}{bases} [line {cls.lineno}]")
+                    for method in cls.methods:
+                        args = ", ".join(method.args)
+                        async_prefix = "async " if method.is_async else ""
+                        output_lines.append(f"        {async_prefix}def {method.name}({args}) [line {method.lineno}]")
+
+            if analysis.functions:
+                output_lines.append(f"  Functions ({len(analysis.functions)}):")
+                for func in analysis.functions:
+                    args = ", ".join(func.args)
+                    async_prefix = "async " if func.is_async else ""
+                    ret = f" -> {func.return_type}" if func.return_type else ""
+                    output_lines.append(f"    - {async_prefix}def {func.name}({args}){ret} [line {func.lineno}]")
+
+            # Include content if requested and file not too large
+            if include_content and file_size <= max_file_size_kb * 1024:
+                output_lines.append("")
+                output_lines.append("-" * 40)
+                output_lines.append("CODE:")
+                output_lines.append("-" * 40)
+
+                try:
+                    with open(file_path, 'r', encoding=analysis.encoding, errors='replace') as f:
+                        content = f.read()
+
+                    # Add line numbers
+                    lines = content.split('\n')
+                    max_line_num = len(str(len(lines)))
+                    for i, line in enumerate(lines, 1):
+                        output_lines.append(f"{i:>{max_line_num}} | {line}")
+                except Exception as e:
+                    output_lines.append(f"  [Error reading file: {e}]")
+
+            elif include_content:
+                output_lines.append("")
+                output_lines.append(f"  [File too large: {file_size / 1024:.1f} KB > {max_file_size_kb} KB limit]")
+
+        # Footer with summary
+        output_lines.append("")
+        output_lines.append("=" * 80)
+        output_lines.append("SUMMARY")
+        output_lines.append("=" * 80)
+
+        total_lines = sum(self.analyze_file(f).line_count for f in files[:10])  # Sample for performance
+        output_lines.append(f"Total files: {len(files)}")
+        output_lines.append(f"Excluded directories: {', '.join(exclude_dirs)}")
+        if exclude_patterns:
+            output_lines.append(f"Excluded patterns: {', '.join(exclude_patterns)}")
+        output_lines.append("")
+        output_lines.append("=" * 80)
+        output_lines.append("  END OF EXTRACTION")
+        output_lines.append("=" * 80)
+
+        return '\n'.join(output_lines)
+
+    def _matches_exclude_pattern(self, filename: str, patterns: List[str]) -> bool:
+        """Check if filename matches any exclude pattern."""
+        import fnmatch
+        for pattern in patterns:
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+        return False
+
+    def save_code_extraction(self, directory: str, output_path: str, **kwargs) -> bool:
+        """
+        Extract code and save to a file.
+
+        Args:
+            directory: Root directory to scan
+            output_path: Path to save the extraction
+            **kwargs: Additional arguments for extract_code_hierarchy
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            content = self.extract_code_hierarchy(directory, **kwargs)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            return True
+        except Exception as e:
+            print(f"Error saving extraction: {e}")
+            return False

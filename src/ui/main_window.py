@@ -303,12 +303,19 @@ class PythonAnalyzerFrame(BaseToolFrame):
         self.dir_var = ctk.StringVar()
         ctk.CTkEntry(dir_frame, textvariable=self.dir_var, placeholder_text="Select Python directory...", height=28).pack(side="left", fill="x", expand=True, padx=4)
         ctk.CTkButton(dir_frame, text="...", width=35, height=28, command=self._browse).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(dir_frame, text="▶ Analyze", command=self._analyze, height=28, width=90,
-                      font=ctk.CTkFont(size=11, weight="bold"),
-                      fg_color=("#10b981", "#059669"), hover_color=("#059669", "#047857")).pack(side="right", padx=4)
+
+        # Action buttons
+        btn_frame = ctk.CTkFrame(dir_frame, fg_color="transparent")
+        btn_frame.pack(side="right")
+        ctk.CTkButton(btn_frame, text="▶ Analyze", command=self._analyze, height=28, width=80,
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      fg_color=("#10b981", "#059669"), hover_color=("#059669", "#047857")).pack(side="left", padx=2)
+        ctk.CTkButton(btn_frame, text="📄 Extract", command=self._extract_code, height=28, width=80,
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      fg_color=("#3b82f6", "#2563eb"), hover_color=("#2563eb", "#1d4ed8")).pack(side="left", padx=2)
 
         # Options scrollable frame
-        opts_scroll = ctk.CTkScrollableFrame(top, height=100, label_text="⚙️ Options d'analyse",
+        opts_scroll = ctk.CTkScrollableFrame(top, height=120, label_text="⚙️ Options",
                                               label_font=ctk.CTkFont(size=10, weight="bold"),
                                               fg_color=("gray88", "gray20"), corner_radius=6)
         opts_scroll.pack(fill="x", padx=4, pady=4)
@@ -329,6 +336,9 @@ class PythonAnalyzerFrame(BaseToolFrame):
                         font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
         self.follow_symlinks_var = ctk.BooleanVar(value=False)
         ctk.CTkCheckBox(col1, text="Suivre liens", variable=self.follow_symlinks_var,
+                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
+        self.include_content_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(col1, text="Inclure code", variable=self.include_content_var,
                         font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=(1, 4))
 
         # Column 2 - Analysis depth
@@ -341,30 +351,42 @@ class PythonAnalyzerFrame(BaseToolFrame):
                         font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
         self.analyze_complexity_var = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(col2, text="Complexité", variable=self.analyze_complexity_var,
-                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=(1, 4))
+                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
+        # Max file size
+        size_row = ctk.CTkFrame(col2, fg_color="transparent")
+        size_row.pack(fill="x", padx=8, pady=(1, 4))
+        ctk.CTkLabel(size_row, text="Max KB:", font=ctk.CTkFont(size=8)).pack(side="left")
+        self.max_size_var = ctk.StringVar(value="500")
+        ctk.CTkEntry(size_row, textvariable=self.max_size_var, width=45, height=18, font=ctk.CTkFont(size=8)).pack(side="left", padx=2)
 
-        # Column 3 - Metrics
+        # Column 3 - Exclusions
         col3 = ctk.CTkFrame(opts_grid, fg_color=("gray95", "gray25"), corner_radius=6)
         col3.pack(side="left", fill="both", expand=True, padx=2, pady=2)
-        ctk.CTkLabel(col3, text="Métriques", font=ctk.CTkFont(size=9, weight="bold"),
+        ctk.CTkLabel(col3, text="Exclure fichiers", font=ctk.CTkFont(size=9, weight="bold"),
                      text_color=("#f59e0b", "#fbbf24")).pack(anchor="w", padx=6, pady=(4, 2))
-        self.count_docstrings_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(col3, text="Docstrings", variable=self.count_docstrings_var,
-                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
-        self.detect_duplicates_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(col3, text="Doublons", variable=self.detect_duplicates_var,
-                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=(1, 4))
-
-        # Column 4 - Filters
-        col4 = ctk.CTkFrame(opts_grid, fg_color=("gray95", "gray25"), corner_radius=6)
-        col4.pack(side="left", fill="both", expand=True, padx=2, pady=2)
-        ctk.CTkLabel(col4, text="Filtres", font=ctk.CTkFont(size=9, weight="bold"),
-                     text_color=("#059669", "#10b981")).pack(anchor="w", padx=6, pady=(4, 2))
         self.exclude_tests_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(col4, text="Exclure tests", variable=self.exclude_tests_var,
+        ctk.CTkCheckBox(col3, text="test_*.py", variable=self.exclude_tests_var,
                         font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
         self.exclude_init_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(col4, text="Exclure __init__", variable=self.exclude_init_var,
+        ctk.CTkCheckBox(col3, text="__init__.py", variable=self.exclude_init_var,
+                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
+        self.exclude_setup_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(col3, text="setup.py", variable=self.exclude_setup_var,
+                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=(1, 4))
+
+        # Column 4 - Exclude directories
+        col4 = ctk.CTkFrame(opts_grid, fg_color=("gray95", "gray25"), corner_radius=6)
+        col4.pack(side="left", fill="both", expand=True, padx=2, pady=2)
+        ctk.CTkLabel(col4, text="Exclure dossiers", font=ctk.CTkFont(size=9, weight="bold"),
+                     text_color=("#ef4444", "#f87171")).pack(anchor="w", padx=6, pady=(4, 2))
+        self.exclude_venv_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(col4, text="venv / .venv", variable=self.exclude_venv_var,
+                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
+        self.exclude_pycache_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(col4, text="__pycache__", variable=self.exclude_pycache_var,
+                        font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=1)
+        self.exclude_git_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(col4, text=".git / .idea", variable=self.exclude_git_var,
                         font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=(1, 4))
 
         # Results section
@@ -390,13 +412,36 @@ class PythonAnalyzerFrame(BaseToolFrame):
         p = filedialog.askdirectory(title="Select Python Directory")
         if p: self.dir_var.set(p)
 
+    def _get_exclude_dirs(self):
+        """Build list of directories to exclude based on options."""
+        exclude = []
+        if self.exclude_venv_var.get():
+            exclude.extend(['venv', '.venv', 'env', '.env'])
+        if self.exclude_pycache_var.get():
+            exclude.append('__pycache__')
+        if self.exclude_git_var.get():
+            exclude.extend(['.git', '.idea', '.vscode', 'node_modules'])
+        return exclude
+
+    def _get_exclude_patterns(self):
+        """Build list of file patterns to exclude based on options."""
+        patterns = []
+        if self.exclude_tests_var.get():
+            patterns.extend(['test_*.py', '*_test.py', 'tests.py'])
+        if self.exclude_init_var.get():
+            patterns.append('__init__.py')
+        if self.exclude_setup_var.get():
+            patterns.extend(['setup.py', 'conftest.py'])
+        return patterns
+
     def _analyze(self):
         d = self.dir_var.get()
         if not d:
             messagebox.showerror("Error", "Select a directory first")
             return
+        exclude_dirs = self._get_exclude_dirs()
         def do():
-            a = self.analyzer.analyze_directory(d, include_subdirs=self.subdirs_var.get())
+            a = self.analyzer.analyze_directory(d, include_subdirs=self.subdirs_var.get(), exclude_dirs=exclude_dirs)
             s = self.analyzer.generate_summary(a)
             return a, s
         def done(r):
@@ -408,6 +453,57 @@ class PythonAnalyzerFrame(BaseToolFrame):
             for x in a[:50]:
                 self.files_text.insert("end", f"{x.name} - {x.line_count} lines\n")
             self.set_progress(1.0, f"Analyzed {len(a)} files")
+        self.run_async(do, done)
+
+    def _extract_code(self):
+        """Extract all Python code to a text file."""
+        d = self.dir_var.get()
+        if not d:
+            messagebox.showerror("Error", "Select a directory first")
+            return
+
+        # Ask for output file
+        output_path = filedialog.asksaveasfilename(
+            title="Save Code Extraction",
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"{Path(d).name}_code_extraction.txt"
+        )
+        if not output_path:
+            return
+
+        exclude_dirs = self._get_exclude_dirs()
+        exclude_patterns = self._get_exclude_patterns()
+
+        try:
+            max_size = int(self.max_size_var.get())
+        except ValueError:
+            max_size = 500
+
+        def do():
+            return self.analyzer.extract_code_hierarchy(
+                d,
+                include_subdirs=self.subdirs_var.get(),
+                exclude_patterns=exclude_patterns,
+                exclude_dirs=exclude_dirs,
+                include_content=self.include_content_var.get(),
+                max_file_size_kb=max_size
+            )
+
+        def done(content):
+            try:
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                self._last_result = {"output_path": output_path, "size": len(content)}
+                self.set_progress(1.0, f"Extracted to {Path(output_path).name}")
+                messagebox.showinfo("Success", f"Code extracted to:\n{output_path}")
+                # Open file if option enabled
+                if self.config.config.export.open_after_export:
+                    webbrowser.open(output_path)
+            except Exception as e:
+                self.set_progress(0, "Failed")
+                messagebox.showerror("Error", f"Failed to save: {e}")
+
         self.run_async(do, done)
 
 
@@ -430,9 +526,19 @@ class FolderScannerFrame(BaseToolFrame):
         self.dir_var = ctk.StringVar()
         ctk.CTkEntry(dir_frame, textvariable=self.dir_var, placeholder_text="Select directory...", height=28).pack(side="left", fill="x", expand=True, padx=4)
         ctk.CTkButton(dir_frame, text="...", width=35, height=28, command=self._browse).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(dir_frame, text="▶ Scan", command=self._scan, height=28, width=80,
-                      font=ctk.CTkFont(size=11, weight="bold"),
-                      fg_color=("#10b981", "#059669"), hover_color=("#059669", "#047857")).pack(side="right", padx=4)
+
+        # Action buttons frame
+        btn_frame = ctk.CTkFrame(dir_frame, fg_color="transparent")
+        btn_frame.pack(side="right")
+        ctk.CTkButton(btn_frame, text="▶ Scan", command=self._scan, height=28, width=70,
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      fg_color=("#10b981", "#059669"), hover_color=("#059669", "#047857")).pack(side="left", padx=2)
+        ctk.CTkButton(btn_frame, text="📄 TXT", command=self._export_txt, height=28, width=60,
+                      font=ctk.CTkFont(size=10),
+                      fg_color=("#6b7280", "#4b5563"), hover_color=("#4b5563", "#374151")).pack(side="left", padx=2)
+        ctk.CTkButton(btn_frame, text="📊 Excel", command=self._export_excel, height=28, width=70,
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      fg_color=("#22c55e", "#16a34a"), hover_color=("#16a34a", "#15803d")).pack(side="left", padx=2)
 
         # Options scrollable
         opts_scroll = ctk.CTkScrollableFrame(top, height=120, label_text="⚙️ Options de scan",
@@ -557,6 +663,7 @@ class FolderScannerFrame(BaseToolFrame):
             self.scanner.configure(max_file_size=mx, include_content=self.content_var.get())
             return self.scanner.scan(d)
         def done(r):
+            self._scan_result = r  # Store for export
             self._last_result = {"files": r.total_files, "dirs": r.total_directories, "size": r.total_size}
             self.slabels["files"].configure(text=str(r.total_files))
             self.slabels["dirs"].configure(text=str(r.total_directories))
@@ -565,6 +672,67 @@ class FolderScannerFrame(BaseToolFrame):
             self.tree_text.delete("1.0", "end")
             self.tree_text.insert("1.0", self.scanner.generate_tree(r))
             self.set_progress(1.0, f"Scanned {r.total_files} files")
+        self.run_async(do, done)
+
+    def _export_txt(self):
+        """Export scan result to a TXT file."""
+        if not hasattr(self, '_scan_result') or not self._scan_result:
+            messagebox.showwarning("Warning", "Please scan a directory first")
+            return
+
+        d = self.dir_var.get()
+        output_path = filedialog.asksaveasfilename(
+            title="Export to Text File",
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"{Path(d).name}_scan.txt"
+        )
+        if not output_path:
+            return
+
+        def do():
+            self.scanner.export_to_file(self._scan_result, output_path, include_content=self.content_var.get())
+            return output_path
+
+        def done(path):
+            self.set_progress(1.0, f"Exported to {Path(path).name}")
+            messagebox.showinfo("Success", f"Scan exported to:\n{path}")
+            if self.config.config.export.open_after_export:
+                webbrowser.open(path)
+
+        self.run_async(do, done)
+
+    def _export_excel(self):
+        """Export scan result to an Excel file."""
+        if not hasattr(self, '_scan_result') or not self._scan_result:
+            messagebox.showwarning("Warning", "Please scan a directory first")
+            return
+
+        d = self.dir_var.get()
+        output_path = filedialog.asksaveasfilename(
+            title="Export to Excel",
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("CSV files", "*.csv"), ("All files", "*.*")],
+            initialfile=f"{Path(d).name}_scan.xlsx"
+        )
+        if not output_path:
+            return
+
+        def do():
+            success = self.scanner.export_to_excel(self._scan_result, output_path)
+            return success, output_path
+
+        def done(result):
+            success, path = result
+            if success:
+                self.set_progress(1.0, f"Exported to {Path(path).name}")
+                messagebox.showinfo("Success", f"Scan exported to:\n{path}")
+                if self.config.config.export.open_after_export:
+                    webbrowser.open(path)
+            else:
+                self.set_progress(0, "Export failed")
+                messagebox.showerror("Error", "Failed to export scan results")
+
         self.run_async(do, done)
 
 
@@ -871,6 +1039,10 @@ class MainWindow(ctk.CTk):
         ctk.set_appearance_mode(ui.theme)
         ctk.set_default_color_theme(ui.color_scheme)
         self.title("CodeExtractPro v1.0 - Professional Code Extraction Suite")
+
+        # Set application icon (taskbar + window)
+        self._set_icon()
+
         # Taille réduite pour une IHM plus compacte
         self.geometry(f"{min(ui.window_width, 1200)}x{min(ui.window_height, 750)}")
         self.minsize(900, 600)
@@ -880,6 +1052,36 @@ class MainWindow(ctk.CTk):
         self._shortcuts()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.logger.info("CodeExtractPro v1.0 started")
+
+    def _set_icon(self):
+        """Set application icon for window and taskbar."""
+        import sys
+        try:
+            # Find icon path
+            if getattr(sys, 'frozen', False):
+                # Running as PyInstaller bundle
+                base_path = sys._MEIPASS
+            else:
+                # Running as script
+                base_path = Path(__file__).parent.parent.parent
+
+            icon_path = Path(base_path) / "assets" / "icon.ico"
+
+            if icon_path.exists():
+                # Set window icon
+                self.iconbitmap(str(icon_path))
+
+                # Windows taskbar icon fix - set app id
+                if sys.platform == "win32":
+                    try:
+                        import ctypes
+                        # Set AppUserModelID for proper taskbar grouping and icon
+                        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("CodeExtractPro.v1.0")
+                    except Exception:
+                        pass
+        except Exception as e:
+            # Silently ignore icon errors
+            pass
 
     def _create_ui(self):
         main = ctk.CTkFrame(self, fg_color="transparent")

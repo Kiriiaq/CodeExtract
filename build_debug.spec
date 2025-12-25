@@ -80,7 +80,7 @@ a = Analysis(
     ['main.py'],
     pathex=['.', 'src'],
     binaries=[],
-    datas=datas + [('src', 'src')],
+    datas=datas + [('src', 'src'), ('assets', 'assets')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

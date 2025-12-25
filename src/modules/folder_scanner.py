@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Callable
+from typing import Any, Dict, List, Optional, Set, Callable
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -374,3 +374,198 @@ class FolderScanner:
 
         for subdir in entry.subdirectories:
             self._write_contents(f, subdir)
+
+    def get_all_files_flat(self, entry: DirectoryEntry, root_path: str = "") -> List[Dict]:
+        """Get all files as a flat list of dictionaries for export."""
+        files = []
+        base_path = root_path or entry.path
+
+        for file_entry in entry.files:
+            rel_path = os.path.relpath(file_entry.path, base_path)
+            files.append({
+                'name': file_entry.name,
+                'path': file_entry.path,
+                'relative_path': rel_path,
+                'directory': os.path.dirname(rel_path) or '.',
+                'extension': file_entry.extension,
+                'size': file_entry.size,
+                'size_formatted': self._format_size(file_entry.size),
+                'modified': file_entry.modified.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_binary': file_entry.is_binary,
+                'encoding': file_entry.encoding,
+                'has_content': file_entry.content is not None,
+                'error': file_entry.error or ''
+            })
+
+        for subdir in entry.subdirectories:
+            files.extend(self.get_all_files_flat(subdir, base_path))
+
+        return files
+
+    def export_to_excel(self, result: ScanResult, output_path: str) -> bool:
+        """
+        Export scan result to an Excel file.
+
+        Args:
+            result: ScanResult from a scan
+            output_path: Path for the Excel file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            # Fallback to CSV if openpyxl not available
+            csv_path = output_path.replace('.xlsx', '.csv').replace('.xls', '.csv')
+            return self._export_to_csv_fallback(result, csv_path)
+
+        if not result.root_entry:
+            return False
+
+        wb = openpyxl.Workbook()
+
+        # ===== Sheet 1: Summary =====
+        ws_summary = wb.active
+        ws_summary.title = "Summary"
+
+        # Header style
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Summary data
+        summary_data = [
+            ("Property", "Value"),
+            ("Root Directory", result.root_path),
+            ("Scan Date", datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ("Total Files", result.total_files),
+            ("Total Directories", result.total_directories),
+            ("Total Size", self._format_size(result.total_size)),
+            ("Total Size (bytes)", result.total_size),
+            ("Scan Time", f"{result.scan_time:.2f} seconds"),
+            ("Errors", len(result.errors))
+        ]
+
+        for row_idx, (prop, value) in enumerate(summary_data, 1):
+            ws_summary.cell(row=row_idx, column=1, value=prop)
+            ws_summary.cell(row=row_idx, column=2, value=value)
+            if row_idx == 1:
+                ws_summary.cell(row=row_idx, column=1).font = header_font
+                ws_summary.cell(row=row_idx, column=1).fill = header_fill
+                ws_summary.cell(row=row_idx, column=2).font = header_font
+                ws_summary.cell(row=row_idx, column=2).fill = header_fill
+
+        ws_summary.column_dimensions['A'].width = 20
+        ws_summary.column_dimensions['B'].width = 50
+
+        # ===== Sheet 2: Files =====
+        ws_files = wb.create_sheet("Files")
+
+        headers = ["Name", "Relative Path", "Directory", "Extension", "Size (bytes)", "Size", "Modified", "Binary", "Encoding"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_files.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center')
+
+        # Get all files
+        all_files = self.get_all_files_flat(result.root_entry)
+
+        for row_idx, file_info in enumerate(all_files, 2):
+            ws_files.cell(row=row_idx, column=1, value=file_info['name'])
+            ws_files.cell(row=row_idx, column=2, value=file_info['relative_path'])
+            ws_files.cell(row=row_idx, column=3, value=file_info['directory'])
+            ws_files.cell(row=row_idx, column=4, value=file_info['extension'])
+            ws_files.cell(row=row_idx, column=5, value=file_info['size'])
+            ws_files.cell(row=row_idx, column=6, value=file_info['size_formatted'])
+            ws_files.cell(row=row_idx, column=7, value=file_info['modified'])
+            ws_files.cell(row=row_idx, column=8, value="Yes" if file_info['is_binary'] else "No")
+            ws_files.cell(row=row_idx, column=9, value=file_info['encoding'])
+
+        # Auto-width columns
+        for col in range(1, len(headers) + 1):
+            max_length = max(len(str(ws_files.cell(row=r, column=col).value or "")) for r in range(1, min(100, len(all_files) + 2)))
+            ws_files.column_dimensions[get_column_letter(col)].width = min(max_length + 2, 50)
+
+        # ===== Sheet 3: By Extension =====
+        ws_ext = wb.create_sheet("By Extension")
+
+        # Count by extension
+        ext_stats = {}
+        for file_info in all_files:
+            ext = file_info['extension'] or '(no extension)'
+            if ext not in ext_stats:
+                ext_stats[ext] = {'count': 0, 'size': 0}
+            ext_stats[ext]['count'] += 1
+            ext_stats[ext]['size'] += file_info['size']
+
+        ext_headers = ["Extension", "File Count", "Total Size (bytes)", "Total Size"]
+        for col, header in enumerate(ext_headers, 1):
+            cell = ws_ext.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+
+        for row_idx, (ext, stats) in enumerate(sorted(ext_stats.items(), key=lambda x: x[1]['size'], reverse=True), 2):
+            ws_ext.cell(row=row_idx, column=1, value=ext)
+            ws_ext.cell(row=row_idx, column=2, value=stats['count'])
+            ws_ext.cell(row=row_idx, column=3, value=stats['size'])
+            ws_ext.cell(row=row_idx, column=4, value=self._format_size(stats['size']))
+
+        for col in range(1, 5):
+            ws_ext.column_dimensions[get_column_letter(col)].width = 20
+
+        # ===== Sheet 4: Directory Tree =====
+        ws_tree = wb.create_sheet("Directory Tree")
+        tree_lines = self.generate_tree(result, include_files=False).split('\n')
+        for row_idx, line in enumerate(tree_lines, 1):
+            ws_tree.cell(row=row_idx, column=1, value=line)
+        ws_tree.column_dimensions['A'].width = 80
+
+        # ===== Sheet 5: Errors (if any) =====
+        if result.errors:
+            ws_errors = wb.create_sheet("Errors")
+            ws_errors.cell(row=1, column=1, value="Error").font = header_font
+            ws_errors.cell(row=1, column=1).fill = PatternFill(start_color="DC2626", end_color="DC2626", fill_type="solid")
+            for row_idx, error in enumerate(result.errors, 2):
+                ws_errors.cell(row=row_idx, column=1, value=error)
+            ws_errors.column_dimensions['A'].width = 100
+
+        # Save workbook
+        wb.save(output_path)
+        return True
+
+    def _export_to_csv_fallback(self, result: ScanResult, output_path: str) -> bool:
+        """Export to CSV as fallback when openpyxl is not available."""
+        import csv
+
+        if not result.root_entry:
+            return False
+
+        all_files = self.get_all_files_flat(result.root_entry)
+
+        with open(output_path, 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Name", "Relative Path", "Directory", "Extension", "Size (bytes)", "Size", "Modified", "Binary", "Encoding"])
+            for file_info in all_files:
+                writer.writerow([
+                    file_info['name'],
+                    file_info['relative_path'],
+                    file_info['directory'],
+                    file_info['extension'],
+                    file_info['size'],
+                    file_info['size_formatted'],
+                    file_info['modified'],
+                    "Yes" if file_info['is_binary'] else "No",
+                    file_info['encoding']
+                ])
+
+        return True
