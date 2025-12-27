@@ -153,12 +153,14 @@ class CSVExporter(BaseExporter):
                     rows.append(self._flatten_dict(item.to_dict()))
             return rows
         elif isinstance(data, dict):
-            if 'rows' in data:
+            # Check for nested list data with common keys
+            if 'rows' in data and isinstance(data['rows'], list):
                 return self._to_rows(data['rows'])
-            elif 'data' in data:
+            elif 'data' in data and isinstance(data['data'], list):
                 return self._to_rows(data['data'])
-            elif 'files' in data:
+            elif 'files' in data and isinstance(data['files'], list):
                 return self._to_rows(data['files'])
+            # For simple dicts (stats, summary), return as single row
             return [self._flatten_dict(data)]
         return []
 
