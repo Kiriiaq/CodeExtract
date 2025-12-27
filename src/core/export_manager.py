@@ -452,9 +452,9 @@ class HTMLExporter(BaseExporter):
                     </div>
                     '''
 
-            # Files table
+            # Files table (only if 'files' is a list)
             files = data.get('files', [])
-            if files:
+            if isinstance(files, list) and files:
                 rows = []
                 for f in files[:100]:
                     if isinstance(f, dict):
@@ -473,9 +473,9 @@ class HTMLExporter(BaseExporter):
                     </div>
                     '''
 
-            # Modules table (for VBA)
+            # Modules table (for VBA, only if 'modules' is a list)
             modules = data.get('modules', [])
-            if modules:
+            if isinstance(modules, list) and modules:
                 rows = []
                 for m in modules:
                     if isinstance(m, dict):
