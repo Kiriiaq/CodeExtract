@@ -1,12 +1,44 @@
-# CodeExtractPro v1.0
+# CodeExtractPro - VBA Code Extractor & Python Analyzer
 
-**Professional Code Extraction & Analysis Suite**
+**Professional VBA extraction tool for Microsoft Office files with Python code analysis capabilities**
 
-A modern, feature-rich desktop application for extracting VBA code from Microsoft Office files, analyzing Python projects, scanning directory structures, and optimizing VBA code.
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://github.com/Kiriiaq/CodeExtract/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.0-orange.svg)](https://github.com/Kiriiaq/CodeExtract/releases/latest)
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)
+---
+
+## What is CodeExtractPro?
+
+CodeExtractPro solves a common problem for developers and analysts: **extracting VBA macros from Microsoft Office files** (Excel, Word, PowerPoint) quickly and reliably. It also provides tools for analyzing Python projects and scanning folder structures.
+
+**Key benefits:**
+- Extract VBA code from `.xlsm`, `.xlsb`, `.docm`, `.pptm` and other macro-enabled Office formats
+- Analyze Python project structure and code metrics
+- Scan directories with detailed file information
+- Optimize and clean VBA code
+- Export results to JSON, CSV, or HTML
+
+---
+
+## Quick Start (Recommended)
+
+### Download Ready-to-Use Executables
+
+Download from [**Releases**](https://github.com/Kiriiaq/CodeExtract/releases/latest):
+
+| File | Description | Size |
+|------|-------------|------|
+| `CodeExtractPro.exe` | **Production version** - No console window, clean UI | ~40 MB |
+| `CodeExtractPro_Debug.exe` | **Debug version** - Console output for troubleshooting | ~40 MB |
+
+**Just download and double-click to run.** No installation or Python required.
+
+### Which Version Should I Use?
+
+- **CodeExtractPro.exe** (Production): For everyday use. Clean interface without console window.
+- **CodeExtractPro_Debug.exe** (Debug): Use when experiencing issues. Shows detailed logs in a console window for troubleshooting.
 
 ---
 
@@ -61,8 +93,6 @@ Scan and analyze directory structures.
 | Show dates | Display modification dates |
 | Output style | Tree, flat list, or JSON |
 
-**Statistics:** File count, directory count, total size, scan time
-
 ### VBA Optimizer
 Optimize and clean VBA code.
 
@@ -83,14 +113,13 @@ Optimize and clean VBA code.
 
 ---
 
-## Installation
+## Installation from Source (Developers)
 
-### Option 1: Standalone Executable (Recommended)
-Download from [Releases](https://github.com/Kiriiaq/CodeExtract/releases):
-- `CodeExtractPro.exe` - Release version (no console)
-- `CodeExtractPro_Debug.exe` - Debug version (with console output)
+### Prerequisites
+- Python 3.9+
+- pip
 
-### Option 2: From Source
+### Setup
 
 ```bash
 # Clone the repository
@@ -111,6 +140,26 @@ python main.py
 | customtkinter | >= 5.2.0 | Yes | Modern UI framework |
 | oletools | >= 0.60 | Optional | VBA extraction (cross-platform) |
 | pywin32 | >= 306 | Optional | Excel automation (Windows only) |
+
+---
+
+## Building Executables
+
+```bash
+# Install build dependencies
+pip install pyinstaller customtkinter oletools pywin32
+
+# Build both versions
+pyinstaller --clean --noconfirm build_release.spec
+pyinstaller --clean --noconfirm build_debug.spec
+
+# Or use the build script (Windows)
+build.bat
+```
+
+**Output:**
+- `dist/CodeExtractPro.exe` - Production build (no console)
+- `dist/CodeExtractPro_Debug.exe` - Debug build (with console)
 
 ---
 
@@ -143,32 +192,6 @@ All tools support exporting results to:
 
 ---
 
-## Building from Source
-
-### Prerequisites
-- Python 3.9+
-- pip
-
-### Build Commands
-
-```bash
-# Install build dependencies
-pip install pyinstaller customtkinter oletools pywin32
-
-# Build both versions
-python -m PyInstaller --clean --noconfirm build_release.spec
-python -m PyInstaller --clean --noconfirm build_debug.spec
-
-# Or use the build script (Windows)
-build.bat
-```
-
-### Output
-- `dist/CodeExtractPro.exe` - Release build
-- `dist/CodeExtractPro_Debug.exe` - Debug build with console
-
----
-
 ## Project Structure
 
 ```
@@ -177,10 +200,10 @@ CodeExtractPro/
 ├── requirements.txt        # Python dependencies
 ├── build_release.spec      # PyInstaller config (release)
 ├── build_debug.spec        # PyInstaller config (debug)
-├── build.bat              # Windows build script
-├── LICENSE                # MIT License
-├── README.md              # This file
-├── assets/                # Icons and resources
+├── build.bat               # Windows build script
+├── LICENSE                 # MIT License
+├── README.md               # This file
+├── assets/                 # Icons and resources
 ├── src/
 │   ├── core/
 │   │   ├── config_manager.py    # Configuration management
@@ -208,7 +231,6 @@ CodeExtractPro/
 
 Configuration is stored in:
 - **Windows**: `%USERPROFILE%\.codeextractpro\config.json`
-- **Linux/Mac**: `~/.codeextractpro/config.json`
 
 Settings are automatically saved and include:
 - Window size and position
@@ -234,26 +256,16 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
-## Changelog
-
-### v1.0.0 (Initial Release)
-- Modern GUI with CustomTkinter framework
-- **VBA Extractor**: Extract VBA code from Office files (Excel, Word, PowerPoint)
-- **Python Analyzer**: Analyze Python code structure and metrics
-- **Folder Scanner**: Scan and analyze directory structures
-- **VBA Optimizer**: Optimize and clean VBA code
-- Multi-format export (JSON, CSV, HTML)
-- Keyboard shortcuts for quick navigation
-- Dark/Light/System theme support
-- Configuration persistence and backup
-- Standalone Windows executable
-
----
-
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Kiriiaq/CodeExtract/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Kiriiaq/CodeExtract/discussions)
+
+---
+
+## Keywords
+
+VBA extractor, Excel macro extractor, Office VBA tool, Python code analyzer, folder scanner, VBA optimizer, extract macros from Excel, xlsm vba extraction, docm macro extraction, code analysis tool
 
 ---
 

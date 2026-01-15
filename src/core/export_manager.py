@@ -421,6 +421,61 @@ class HTMLExporter(BaseExporter):
             color: var(--text-secondary);
             font-size: 0.875rem;
         }}
+        /* Search box styles */
+        .search-container {{
+            margin-bottom: 1.5rem;
+        }}
+        .search-input {{
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }}
+        .search-input:focus {{
+            outline: none;
+            border-color: var(--primary);
+        }}
+        .search-input::placeholder {{
+            color: var(--text-secondary);
+        }}
+        .search-results {{
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }}
+        .highlight {{
+            background: var(--warning);
+            color: black;
+            padding: 0.1rem 0.2rem;
+            border-radius: 2px;
+        }}
+        tr.hidden {{
+            display: none;
+        }}
+        /* Collapsible sections */
+        .collapsible {{
+            cursor: pointer;
+            user-select: none;
+        }}
+        .collapsible:after {{
+            content: ' ▼';
+            font-size: 0.75rem;
+        }}
+        .collapsible.collapsed:after {{
+            content: ' ►';
+        }}
+        .collapsible-content {{
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }}
+        .collapsible-content.collapsed {{
+            max-height: 0;
+        }}
         '''
 
         # Build HTML content
@@ -494,6 +549,80 @@ class HTMLExporter(BaseExporter):
                     </div>
                     '''
 
+        # JavaScript for search functionality
+        search_js = '''
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    const query = e.target.value.toLowerCase().trim();
+                    const tables = document.querySelectorAll('table tbody');
+                    let totalVisible = 0;
+                    let totalRows = 0;
+
+                    tables.forEach(function(tbody) {
+                        const rows = tbody.querySelectorAll('tr');
+                        rows.forEach(function(row) {
+                            totalRows++;
+                            const text = row.textContent.toLowerCase();
+                            if (query === '' || text.includes(query)) {
+                                row.classList.remove('hidden');
+                                totalVisible++;
+                                // Highlight matching text
+                                if (query !== '') {
+                                    row.querySelectorAll('td').forEach(function(td) {
+                                        const originalText = td.getAttribute('data-original') || td.textContent;
+                                        td.setAttribute('data-original', originalText);
+                                        const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + ')', 'gi');
+                                        td.innerHTML = originalText.replace(regex, '<span class="highlight">$1</span>');
+                                    });
+                                } else {
+                                    row.querySelectorAll('td').forEach(function(td) {
+                                        const originalText = td.getAttribute('data-original');
+                                        if (originalText) td.textContent = originalText;
+                                    });
+                                }
+                            } else {
+                                row.classList.add('hidden');
+                            }
+                        });
+                    });
+
+                    if (searchResults) {
+                        if (query === '') {
+                            searchResults.textContent = '';
+                        } else {
+                            searchResults.textContent = totalVisible + ' / ' + totalRows + ' items match "' + query + '"';
+                        }
+                    }
+                });
+            }
+
+            // Collapsible sections
+            document.querySelectorAll('.collapsible').forEach(function(header) {
+                header.addEventListener('click', function() {
+                    this.classList.toggle('collapsed');
+                    const content = this.nextElementSibling;
+                    if (content && content.classList.contains('collapsible-content')) {
+                        content.classList.toggle('collapsed');
+                    }
+                });
+            });
+        });
+        </script>
+        '''
+
+        # Search box HTML
+        search_html = '''
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search files, modules, functions...">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+        '''
+
         return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -508,6 +637,7 @@ class HTMLExporter(BaseExporter):
         <p class="meta">Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} by CodeExtractPro</p>
 
         {stats_html}
+        {search_html}
         {modules_html}
         {files_html}
 
@@ -515,6 +645,7 @@ class HTMLExporter(BaseExporter):
             <p>Generated by CodeExtractPro v1.0</p>
         </div>
     </div>
+    {search_js}
 </body>
 </html>'''
 

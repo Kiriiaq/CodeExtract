@@ -231,7 +231,20 @@ class VBAExtractor:
         return None
 
     def _extract_with_win32com(self, file_path: str) -> List[VBAModule]:
-        """Extract VBA using Win32COM automation."""
+        """Extract VBA using Win32COM automation. Supports Excel, Word, and PowerPoint."""
+        ext = Path(file_path).suffix.lower()
+
+        if ext in {'.xlsm', '.xlsb', '.xls', '.xla', '.xlam'}:
+            return self._extract_excel_win32com(file_path)
+        elif ext in {'.docm', '.doc', '.dotm'}:
+            return self._extract_word_win32com(file_path)
+        elif ext in {'.pptm', '.ppt', '.potm', '.ppsm'}:
+            return self._extract_powerpoint_win32com(file_path)
+        else:
+            return []
+
+    def _extract_excel_win32com(self, file_path: str) -> List[VBAModule]:
+        """Extract VBA from Excel files using Win32COM."""
         modules = []
         excel = None
 
@@ -263,6 +276,89 @@ class VBAExtractor:
         finally:
             if excel:
                 excel.Quit()
+
+        return modules
+
+    def _extract_word_win32com(self, file_path: str) -> List[VBAModule]:
+        """Extract VBA from Word files using Win32COM."""
+        modules = []
+        word = None
+
+        try:
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            word.DisplayAlerts = 0  # wdAlertsNone
+
+            doc = word.Documents.Open(os.path.abspath(file_path), ReadOnly=True)
+
+            try:
+                vb_project = doc.VBProject
+
+                for component in vb_project.VBComponents:
+                    if component.CodeModule.CountOfLines > 0:
+                        code = component.CodeModule.Lines(1, component.CodeModule.CountOfLines)
+                        module_type = self.MODULE_TYPES.get(component.Type, "Unknown")
+
+                        modules.append(VBAModule(
+                            name=component.Name,
+                            module_type=module_type,
+                            code=code,
+                            source_file=file_path
+                        ))
+
+            finally:
+                doc.Close(SaveChanges=False)
+
+        except Exception as e:
+            # Word may not have VBProject access enabled
+            raise Exception(f"Word VBA extraction failed: {e}. Enable 'Trust access to VBA project' in Word options.")
+
+        finally:
+            if word:
+                word.Quit()
+
+        return modules
+
+    def _extract_powerpoint_win32com(self, file_path: str) -> List[VBAModule]:
+        """Extract VBA from PowerPoint files using Win32COM."""
+        modules = []
+        ppt = None
+
+        try:
+            ppt = win32com.client.Dispatch("PowerPoint.Application")
+            # PowerPoint doesn't support Visible=False in some versions
+            ppt.DisplayAlerts = 0  # ppAlertsNone
+
+            presentation = ppt.Presentations.Open(
+                os.path.abspath(file_path),
+                ReadOnly=True,
+                WithWindow=False
+            )
+
+            try:
+                vb_project = presentation.VBProject
+
+                for component in vb_project.VBComponents:
+                    if component.CodeModule.CountOfLines > 0:
+                        code = component.CodeModule.Lines(1, component.CodeModule.CountOfLines)
+                        module_type = self.MODULE_TYPES.get(component.Type, "Unknown")
+
+                        modules.append(VBAModule(
+                            name=component.Name,
+                            module_type=module_type,
+                            code=code,
+                            source_file=file_path
+                        ))
+
+            finally:
+                presentation.Close()
+
+        except Exception as e:
+            raise Exception(f"PowerPoint VBA extraction failed: {e}. Enable 'Trust access to VBA project' in PowerPoint options.")
+
+        finally:
+            if ppt:
+                ppt.Quit()
 
         return modules
 

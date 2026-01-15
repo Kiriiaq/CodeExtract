@@ -569,3 +569,147 @@ class FolderScanner:
                 ])
 
         return True
+
+    def export_full_architecture(self, result: ScanResult, output_path: str,
+                                   extensions_filter: Optional[List[str]] = None,
+                                   include_line_numbers: bool = True) -> bool:
+        """
+        Export complete architecture with table of contents and full file content.
+        Similar to the mix/Python File Report architecture export.
+
+        Args:
+            result: ScanResult from a scan
+            output_path: Path for the output file
+            extensions_filter: Only include files with these extensions (e.g., ['.py', '.js'])
+            include_line_numbers: Add line numbers to file content
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not result.root_entry:
+            return False
+
+        # Collect all files
+        all_files = self.get_all_files_flat(result.root_entry)
+
+        # Filter by extension if specified
+        if extensions_filter:
+            extensions_filter = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in extensions_filter]
+            all_files = [f for f in all_files if f['extension'].lower() in extensions_filter]
+
+        # Sort by path
+        all_files.sort(key=lambda x: x['relative_path'].lower())
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            # Header
+            f.write("=" * 80 + "\n")
+            f.write("ARCHITECTURE ET CONTENU DU PROJET\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(f"Généré le: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write(f"Répertoire: {result.root_path}\n")
+            if extensions_filter:
+                f.write(f"Extensions filtrées: {', '.join(extensions_filter)}\n")
+            f.write(f"Nombre de fichiers: {len(all_files)}\n")
+            total_lines = 0
+            total_size = sum(f['size'] for f in all_files)
+            f.write(f"Taille totale: {self._format_size(total_size)}\n")
+
+            # Collect stats
+            stats_by_ext = {}
+            stats_by_dir = {}
+            for file_info in all_files:
+                ext = file_info['extension'] or '(sans extension)'
+                dir_name = file_info['directory']
+
+                if ext not in stats_by_ext:
+                    stats_by_ext[ext] = {'count': 0, 'size': 0}
+                stats_by_ext[ext]['count'] += 1
+                stats_by_ext[ext]['size'] += file_info['size']
+
+                if dir_name not in stats_by_dir:
+                    stats_by_dir[dir_name] = {'count': 0, 'size': 0}
+                stats_by_dir[dir_name]['count'] += 1
+                stats_by_dir[dir_name]['size'] += file_info['size']
+
+            # Statistics by extension
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("STATISTIQUES PAR EXTENSION\n")
+            f.write("=" * 80 + "\n\n")
+            for ext in sorted(stats_by_ext.keys()):
+                stats = stats_by_ext[ext]
+                f.write(f"  {ext}: {stats['count']} fichiers, {self._format_size(stats['size'])}\n")
+
+            # Statistics by directory
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("STATISTIQUES PAR RÉPERTOIRE\n")
+            f.write("=" * 80 + "\n\n")
+            for dir_name in sorted(stats_by_dir.keys()):
+                stats = stats_by_dir[dir_name]
+                f.write(f"  {dir_name}: {stats['count']} fichiers, {self._format_size(stats['size'])}\n")
+
+            # Table of contents
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("TABLE DES MATIÈRES\n")
+            f.write("=" * 80 + "\n\n")
+            for i, file_info in enumerate(all_files, 1):
+                f.write(f"  {i:4}. {file_info['relative_path']}\n")
+
+            # Directory tree
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("STRUCTURE DU PROJET\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(self.generate_tree(result, include_files=True))
+            f.write("\n")
+
+            # File contents
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("CONTENU DES FICHIERS\n")
+            f.write("=" * 80 + "\n")
+
+            for i, file_info in enumerate(all_files, 1):
+                f.write("\n" + "=" * 80 + "\n")
+                f.write(f"FICHIER {i}/{len(all_files)}: {file_info['relative_path']}\n")
+                f.write(f"Taille: {file_info['size']} octets | ")
+                f.write(f"Modifié: {file_info['modified']} | ")
+                f.write(f"Encodage: {file_info['encoding']}\n")
+                f.write("=" * 80 + "\n\n")
+
+                # Get full file path
+                full_path = file_info['path']
+
+                if file_info['is_binary']:
+                    f.write("[Fichier binaire - contenu non affiché]\n")
+                else:
+                    try:
+                        with open(full_path, 'r', encoding=file_info['encoding'], errors='replace') as src:
+                            content = src.read()
+
+                        lines = content.split('\n')
+                        total_lines += len(lines)
+
+                        if include_line_numbers:
+                            max_line_width = len(str(len(lines)))
+                            for line_num, line in enumerate(lines, 1):
+                                f.write(f"{str(line_num).rjust(max_line_width)} | {line}\n")
+                        else:
+                            f.write(content)
+                            if not content.endswith('\n'):
+                                f.write("\n")
+                    except Exception as e:
+                        f.write(f"[Erreur de lecture: {e}]\n")
+
+            # Footer summary
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("RÉSUMÉ\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(f"Total fichiers: {len(all_files)}\n")
+            f.write(f"Total lignes: {total_lines:,}\n")
+            f.write(f"Taille totale: {self._format_size(total_size)}\n")
+            f.write(f"Répertoires: {len(stats_by_dir)}\n")
+            f.write(f"Types de fichiers: {len(stats_by_ext)}\n")
+
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("FIN DU RAPPORT D'ARCHITECTURE\n")
+            f.write("=" * 80 + "\n")
+
+        return True

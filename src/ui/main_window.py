@@ -34,6 +34,7 @@ try:
     from ..modules.python_analyzer import PythonAnalyzer
     from ..modules.folder_scanner import FolderScanner
     from ..modules.vba_optimizer import VBAOptimizer, OptimizationOptions
+    from ..modules.vba_analyzer import VBAAnalyzer, get_hex_preview, is_binary_file
     from ..utils.widgets import ToolTip
 except ImportError:
     # Fall back to absolute imports (for PyInstaller or direct execution)
@@ -44,6 +45,7 @@ except ImportError:
     from modules.python_analyzer import PythonAnalyzer
     from modules.folder_scanner import FolderScanner
     from modules.vba_optimizer import VBAOptimizer, OptimizationOptions
+    from modules.vba_analyzer import VBAAnalyzer, get_hex_preview, is_binary_file
     from utils.widgets import ToolTip
 
 
@@ -374,6 +376,23 @@ class PythonAnalyzerFrame(BaseToolFrame):
         ctk.CTkCheckBox(col3, text="setup.py", variable=self.exclude_setup_var,
                         font=ctk.CTkFont(size=9), height=20, checkbox_width=16, checkbox_height=16).pack(anchor="w", padx=8, pady=(1, 4))
 
+        # Column 5 - Regex filter with examples
+        col5 = ctk.CTkFrame(opts_grid, fg_color=("gray95", "gray25"), corner_radius=6)
+        col5.pack(side="left", fill="both", expand=True, padx=2, pady=2)
+        ctk.CTkLabel(col5, text="Filtre Regex", font=ctk.CTkFont(size=9, weight="bold"),
+                     text_color=("#8b5cf6", "#a78bfa")).pack(anchor="w", padx=6, pady=(4, 2))
+        self.regex_var = ctk.StringVar()
+        ctk.CTkEntry(col5, textvariable=self.regex_var, placeholder_text="Ex: ^main.*",
+                     height=22, font=ctk.CTkFont(size=9)).pack(fill="x", padx=8, pady=2)
+        # Regex examples buttons
+        regex_btn_frame = ctk.CTkFrame(col5, fg_color="transparent")
+        regex_btn_frame.pack(fill="x", padx=8, pady=(0, 4))
+        regex_examples = [("main", "^main"), ("config", "config"), ("!test", "^(?!test)")]
+        for label, pattern in regex_examples:
+            ctk.CTkButton(regex_btn_frame, text=label, width=40, height=18,
+                          font=ctk.CTkFont(size=8),
+                          command=lambda p=pattern: self.regex_var.set(p)).pack(side="left", padx=1)
+
         # Column 4 - Exclude directories
         col4 = ctk.CTkFrame(opts_grid, fg_color=("gray95", "gray25"), corner_radius=6)
         col4.pack(side="left", fill="both", expand=True, padx=2, pady=2)
@@ -539,6 +558,9 @@ class FolderScannerFrame(BaseToolFrame):
         ctk.CTkButton(btn_frame, text="📊 Excel", command=self._export_excel, height=28, width=70,
                       font=ctk.CTkFont(size=10, weight="bold"),
                       fg_color=("#22c55e", "#16a34a"), hover_color=("#16a34a", "#15803d")).pack(side="left", padx=2)
+        ctk.CTkButton(btn_frame, text="🏗️ Archi", command=self._export_architecture, height=28, width=70,
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      fg_color=("#8b5cf6", "#7c3aed"), hover_color=("#7c3aed", "#6d28d9")).pack(side="left", padx=2)
 
         # Options scrollable
         opts_scroll = ctk.CTkScrollableFrame(top, height=120, label_text="⚙️ Options de scan",
@@ -735,6 +757,52 @@ class FolderScannerFrame(BaseToolFrame):
 
         self.run_async(do, done)
 
+    def _export_architecture(self):
+        """Export full architecture with table of contents and file contents."""
+        if not hasattr(self, '_scan_result') or not self._scan_result:
+            messagebox.showwarning("Warning", "Please scan a directory first")
+            return
+
+        d = self.dir_var.get()
+        output_path = filedialog.asksaveasfilename(
+            title="Export Full Architecture",
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"{Path(d).name}_architecture.txt"
+        )
+        if not output_path:
+            return
+
+        # Ask for extension filter
+        ext_filter = None
+        if messagebox.askyesno("Filter Extensions", "Do you want to filter by specific extensions?\n(e.g., only .py, .js files)"):
+            from tkinter import simpledialog
+            ext_input = simpledialog.askstring("Extensions", "Enter extensions separated by commas\n(e.g.: .py, .js, .html)", parent=self)
+            if ext_input:
+                ext_filter = [e.strip() for e in ext_input.split(',') if e.strip()]
+
+        def do():
+            success = self.scanner.export_full_architecture(
+                self._scan_result,
+                output_path,
+                extensions_filter=ext_filter,
+                include_line_numbers=True
+            )
+            return success, output_path
+
+        def done(result):
+            success, path = result
+            if success:
+                self.set_progress(1.0, f"Architecture exported to {Path(path).name}")
+                messagebox.showinfo("Success", f"Full architecture exported to:\n{path}")
+                if self.config.config.export.open_after_export:
+                    webbrowser.open(path)
+            else:
+                self.set_progress(0, "Export failed")
+                messagebox.showerror("Error", "Failed to export architecture")
+
+        self.run_async(do, done)
+
 
 class VBAOptimizerFrame(BaseToolFrame):
     def __init__(self, parent, **kw):
@@ -838,10 +906,13 @@ class VBAOptimizerFrame(BaseToolFrame):
         inp.pack(side="left", fill="both", expand=True, padx=(0, 2))
         ih = ctk.CTkFrame(inp, fg_color="transparent")
         ih.pack(fill="x", padx=6, pady=4)
-        ctk.CTkLabel(ih, text="📥 Input", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        ctk.CTkLabel(ih, text="📥 Input (Avant)", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
         ctk.CTkButton(ih, text="Load", width=50, height=24, font=ctk.CTkFont(size=9), command=self._load).pack(side="right", padx=2)
         ctk.CTkButton(ih, text="Paste", width=50, height=24, font=ctk.CTkFont(size=9), command=self._paste).pack(side="right", padx=2)
         ctk.CTkButton(ih, text="Clear", width=50, height=24, font=ctk.CTkFont(size=9), command=self._clear_input).pack(side="right", padx=2)
+        ctk.CTkButton(ih, text="Example", width=60, height=24, font=ctk.CTkFont(size=9),
+                      fg_color=("#8b5cf6", "#7c3aed"), hover_color=("#7c3aed", "#6d28d9"),
+                      command=self._load_example).pack(side="right", padx=2)
         self.input_text = ctk.CTkTextbox(inp, font=ctk.CTkFont(family="Consolas", size=9))
         self.input_text.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
@@ -850,11 +921,78 @@ class VBAOptimizerFrame(BaseToolFrame):
         out.pack(side="right", fill="both", expand=True, padx=(2, 0))
         oh = ctk.CTkFrame(out, fg_color="transparent")
         oh.pack(fill="x", padx=6, pady=4)
-        ctk.CTkLabel(oh, text="📤 Output", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        ctk.CTkLabel(oh, text="📤 Output (Après)", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
         ctk.CTkButton(oh, text="Save", width=50, height=24, font=ctk.CTkFont(size=9), command=self._save).pack(side="right", padx=2)
         ctk.CTkButton(oh, text="Copy", width=50, height=24, font=ctk.CTkFont(size=9), command=self._copy).pack(side="right", padx=2)
         self.output_text = ctk.CTkTextbox(out, font=ctk.CTkFont(family="Consolas", size=9))
         self.output_text.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+    def _load_example(self):
+        """Load an example VBA code to demonstrate optimization."""
+        example_code = '''' Module: ExampleModule
+' This is a demonstration VBA module with various issues
+' Author: Demo
+' Date: 2024-01-01
+
+Option Explicit
+
+' Global variable declaration
+Dim gCounter As Integer   ' Counter variable
+Dim unusedGlobal As String   ' This variable is never used
+
+
+Sub MainProcedure()
+' This is the main procedure
+Dim i As Integer
+Dim j As Integer
+Dim result As Double
+
+
+
+' Initialize variables
+i = 0
+j = 10
+
+
+' Loop through values
+For i = 1 To j
+    ' Increment counter
+    gCounter = gCounter + 1
+    Debug.Print "Counter: " & gCounter
+
+    If i Mod 2 = 0 Then
+        ' Even number
+        result = i * 2
+    Else
+    ' Odd number
+    result = i * 3
+    End If
+
+Next i
+
+
+' Display result
+MsgBox "Final result: " & result
+End Sub
+
+
+Function CalculateSum(ByVal a As Integer, ByVal b As Integer) As Integer
+' Function to calculate sum of two numbers
+' Parameters: a - first number, b - second number
+' Returns: sum of a and b
+
+    Dim sum As Integer    ' Local sum variable
+
+
+    sum = a + b
+
+
+    CalculateSum = sum
+End Function
+'''
+        self.input_text.delete("1.0", "end")
+        self.input_text.insert("1.0", example_code)
+        self.stats_label.configure(text="Example loaded - Click 'Optimize' to see the result")
 
     def _paste(self):
         try:
@@ -909,6 +1047,397 @@ class VBAOptimizerFrame(BaseToolFrame):
         else:
             self.output_text.insert("1.0", f"Error: {r.error_message}")
             self.set_progress(0, "Failed")
+
+
+class VBAAnalyzerFrame(BaseToolFrame):
+    """Advanced VBA code analyzer with regex, graphs, and DataFrame export."""
+    def __init__(self, parent, **kw):
+        self.analyzer = VBAAnalyzer()
+        self.analysis_results = []
+        super().__init__(parent, "vba_analyzer", "VBA Analyzer", **kw)
+
+    def _create_content(self):
+        self.content_frame = ctk.CTkFrame(self)
+        self.content_frame.pack(fill="both", expand=True, padx=10, pady=3)
+
+        # Top section - Input options
+        top = ctk.CTkFrame(self.content_frame)
+        top.pack(fill="x", padx=4, pady=4)
+
+        # Mode selection
+        mode_frame = ctk.CTkFrame(top, fg_color="transparent")
+        mode_frame.pack(fill="x", pady=4)
+        ctk.CTkLabel(mode_frame, text="📊 VBA Analyzer", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=4)
+
+        self.mode_var = ctk.StringVar(value="code")
+        ctk.CTkSegmentedButton(mode_frame, values=["Code VBA", "Fichier Hex"],
+                               variable=self.mode_var, command=self._on_mode_change).pack(side="left", padx=10)
+
+        # Action buttons
+        btn_frame = ctk.CTkFrame(mode_frame, fg_color="transparent")
+        btn_frame.pack(side="right")
+        ctk.CTkButton(btn_frame, text="▶ Analyze", command=self._analyze, height=28, width=80,
+                      font=ctk.CTkFont(size=10, weight="bold"),
+                      fg_color=("#10b981", "#059669"), hover_color=("#059669", "#047857")).pack(side="left", padx=2)
+        ctk.CTkButton(btn_frame, text="📈 Graphs", command=self._show_graphs, height=28, width=80,
+                      font=ctk.CTkFont(size=10),
+                      fg_color=("#8b5cf6", "#7c3aed"), hover_color=("#7c3aed", "#6d28d9")).pack(side="left", padx=2)
+        ctk.CTkButton(btn_frame, text="📊 Excel", command=self._export_excel, height=28, width=70,
+                      font=ctk.CTkFont(size=10),
+                      fg_color=("#22c55e", "#16a34a"), hover_color=("#16a34a", "#15803d")).pack(side="left", padx=2)
+
+        # Input frame (code or file)
+        self.input_frame = ctk.CTkFrame(self.content_frame)
+        self.input_frame.pack(fill="both", expand=True, padx=4, pady=4)
+
+        self._create_code_input()
+
+    def _create_code_input(self):
+        """Create the code input interface."""
+        for w in self.input_frame.winfo_children():
+            w.destroy()
+
+        # Left panel - Input
+        left = ctk.CTkFrame(self.input_frame)
+        left.pack(side="left", fill="both", expand=True, padx=(0, 2))
+
+        ih = ctk.CTkFrame(left, fg_color="transparent")
+        ih.pack(fill="x", padx=6, pady=4)
+        ctk.CTkLabel(ih, text="📥 Code VBA", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        ctk.CTkButton(ih, text="Load", width=50, height=24, font=ctk.CTkFont(size=9), command=self._load_file).pack(side="right", padx=2)
+        ctk.CTkButton(ih, text="Paste", width=50, height=24, font=ctk.CTkFont(size=9), command=self._paste).pack(side="right", padx=2)
+        ctk.CTkButton(ih, text="Clear", width=50, height=24, font=ctk.CTkFont(size=9), command=self._clear).pack(side="right", padx=2)
+        ctk.CTkButton(ih, text="Example", width=60, height=24, font=ctk.CTkFont(size=9),
+                      fg_color=("#f59e0b", "#d97706"), command=self._load_example).pack(side="right", padx=2)
+
+        self.input_text = ctk.CTkTextbox(left, font=ctk.CTkFont(family="Consolas", size=9))
+        self.input_text.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        # Right panel - Results
+        right = ctk.CTkFrame(self.input_frame)
+        right.pack(side="right", fill="both", expand=True, padx=(2, 0))
+
+        rh = ctk.CTkFrame(right, fg_color="transparent")
+        rh.pack(fill="x", padx=6, pady=4)
+        ctk.CTkLabel(rh, text="📤 Analyse", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        ctk.CTkButton(rh, text="Copy", width=50, height=24, font=ctk.CTkFont(size=9), command=self._copy_results).pack(side="right", padx=2)
+        ctk.CTkButton(rh, text="Save", width=50, height=24, font=ctk.CTkFont(size=9), command=self._save_results).pack(side="right", padx=2)
+
+        self.result_text = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=9))
+        self.result_text.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+    def _create_hex_input(self):
+        """Create the hex preview interface."""
+        for w in self.input_frame.winfo_children():
+            w.destroy()
+
+        # File selection
+        file_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
+        file_frame.pack(fill="x", padx=6, pady=6)
+        ctk.CTkLabel(file_frame, text="📁 Binary File", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=4)
+        self.hex_file_var = ctk.StringVar()
+        ctk.CTkEntry(file_frame, textvariable=self.hex_file_var, placeholder_text="Select binary file...", height=28).pack(side="left", fill="x", expand=True, padx=4)
+        ctk.CTkButton(file_frame, text="...", width=35, height=28, command=self._browse_hex_file).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(file_frame, text="Preview", width=70, height=28,
+                      fg_color=("#10b981", "#059669"), command=self._preview_hex).pack(side="left", padx=4)
+
+        # Options
+        opts_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
+        opts_frame.pack(fill="x", padx=6, pady=4)
+        ctk.CTkLabel(opts_frame, text="Max bytes:", font=ctk.CTkFont(size=9)).pack(side="left", padx=4)
+        self.hex_bytes_var = ctk.StringVar(value="512")
+        ctk.CTkOptionMenu(opts_frame, values=["256", "512", "1024", "2048", "4096"],
+                          variable=self.hex_bytes_var, width=80, height=24).pack(side="left", padx=4)
+
+        # Hex output
+        self.hex_text = ctk.CTkTextbox(self.input_frame, font=ctk.CTkFont(family="Consolas", size=9))
+        self.hex_text.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+    def _on_mode_change(self, mode):
+        if mode == "Code VBA":
+            self._create_code_input()
+        else:
+            self._create_hex_input()
+
+    def _load_file(self):
+        p = filedialog.askopenfilename(title="Load VBA", filetypes=[("VBA", "*.bas;*.cls;*.frm;*.txt"), ("All", "*.*")])
+        if p:
+            try:
+                with open(p, 'r', encoding='utf-8', errors='replace') as f:
+                    self.input_text.delete("1.0", "end")
+                    self.input_text.insert("1.0", f.read())
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load: {e}")
+
+    def _paste(self):
+        try:
+            content = self.clipboard_get()
+            self.input_text.delete("1.0", "end")
+            self.input_text.insert("1.0", content)
+        except:
+            pass
+
+    def _clear(self):
+        self.input_text.delete("1.0", "end")
+        self.result_text.delete("1.0", "end")
+        self.analysis_results = []
+
+    def _load_example(self):
+        example = '''Option Explicit
+
+' Module-level constants
+Public Const APP_NAME As String = "MyApplication"
+Private Const MAX_ITEMS As Integer = 100
+
+' Module-level variables
+Private mCounter As Long
+Public gUserName As String
+Dim mConfig As Object
+
+' Main initialization procedure
+Public Sub Initialize()
+    Dim tempValue As Integer
+    Dim i As Long
+    Static callCount As Integer
+
+    callCount = callCount + 1
+    mCounter = 0
+
+    For i = 1 To MAX_ITEMS
+        mCounter = mCounter + 1
+        Debug.Print "Item: " & i
+    Next i
+End Sub
+
+' Function to calculate sum
+Private Function CalculateSum(ByVal a As Double, ByVal b As Double) As Double
+    Dim result As Double
+    result = a + b
+    CalculateSum = result
+End Function
+
+' Property Get example
+Public Property Get Counter() As Long
+    Counter = mCounter
+End Property
+
+' Property Let example
+Public Property Let Counter(ByVal value As Long)
+    mCounter = value
+End Property
+
+' Class initialization
+Private Sub Class_Initialize()
+    Dim msg As String
+    msg = "Class initialized"
+    Debug.Print msg
+End Sub
+'''
+        self.input_text.delete("1.0", "end")
+        self.input_text.insert("1.0", example)
+        self.set_progress(0.1, "Example loaded")
+
+    def _analyze(self):
+        if self.mode_var.get() == "Fichier Hex":
+            self._preview_hex()
+            return
+
+        code = self.input_text.get("1.0", "end-1c")
+        if not code.strip():
+            messagebox.showwarning("Warning", "Enter VBA code first")
+            return
+
+        def do():
+            return self.analyzer.analyze_code(code, "Module1", "")
+
+        def done(result):
+            self.analysis_results = [result]
+            self._last_result = result.to_dict()
+
+            self.result_text.delete("1.0", "end")
+            if result.success:
+                # Display summary
+                lines = []
+                lines.append("=" * 50)
+                lines.append(" ANALYSE VBA")
+                lines.append("=" * 50)
+                lines.append("")
+                lines.append(f"Procedures: {result.total_procedures}")
+                lines.append(f"Variables: {result.total_variables}")
+                lines.append(f"Constants: {result.total_constants}")
+                lines.append("")
+
+                # Procedures
+                if result.procedures:
+                    lines.append("PROCEDURES:")
+                    lines.append("-" * 40)
+                    for proc in result.procedures:
+                        ret = f" As {proc.return_type}" if proc.return_type else ""
+                        lines.append(f"  {proc.scope} {proc.procedure_type} {proc.name}({proc.parameters}){ret}")
+                    lines.append("")
+
+                # Variables
+                if result.variables:
+                    lines.append("VARIABLES & CONSTANTS:")
+                    lines.append("-" * 40)
+                    for var in result.variables:
+                        scope_info = f"[{var.procedure_name}]" if var.procedure_name else "[Module]"
+                        value_info = f" = {var.value}" if var.value else ""
+                        lines.append(f"  {var.declaration} {var.name} As {var.var_type}{value_info} {scope_info}")
+
+                self.result_text.insert("1.0", "\n".join(lines))
+                self.set_progress(1.0, f"Found {result.total_procedures} procs, {result.total_variables} vars")
+            else:
+                self.result_text.insert("1.0", f"Error: {result.error_message}")
+                self.set_progress(0, "Analysis failed")
+
+        self.run_async(do, done)
+
+    def _show_graphs(self):
+        if not self.analysis_results:
+            messagebox.showwarning("Warning", "Analyze code first")
+            return
+
+        try:
+            import matplotlib.pyplot as plt
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        except ImportError:
+            messagebox.showerror("Error", "matplotlib not installed.\nInstall with: pip install matplotlib")
+            return
+
+        # Create graph window
+        graph_win = ctk.CTkToplevel(self)
+        graph_win.title("VBA Analysis Graphs")
+        graph_win.geometry("1000x700")
+        graph_win.transient(self.winfo_toplevel())
+
+        # Notebook for tabs
+        notebook = ctk.CTkTabview(graph_win)
+        notebook.pack(fill="both", expand=True, padx=10, pady=10)
+
+        stats = self.analyzer.generate_statistics(self.analysis_results)
+
+        # Tab 1: Procedures by type
+        tab1 = notebook.add("Procedures")
+        fig1, ax1 = plt.subplots(figsize=(8, 5))
+        if stats['procedures_by_type']:
+            types = list(stats['procedures_by_type'].keys())
+            counts = list(stats['procedures_by_type'].values())
+            bars = ax1.bar(types, counts, color=['#10b981', '#3b82f6', '#f59e0b', '#ef4444'][:len(types)])
+            ax1.set_title('Procedures by Type', fontsize=14, fontweight='bold')
+            ax1.set_ylabel('Count')
+            for bar, count in zip(bars, counts):
+                ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
+                        str(count), ha='center', va='bottom')
+        else:
+            ax1.text(0.5, 0.5, 'No procedures found', ha='center', va='center')
+        canvas1 = FigureCanvasTkAgg(fig1, tab1)
+        canvas1.get_tk_widget().pack(fill="both", expand=True)
+
+        # Tab 2: Variables by type
+        tab2 = notebook.add("Variables")
+        fig2, (ax2a, ax2b) = plt.subplots(1, 2, figsize=(12, 5))
+        if stats['variables_by_type']:
+            types = list(stats['variables_by_type'].keys())[:10]
+            counts = [stats['variables_by_type'][t] for t in types]
+            ax2a.barh(types, counts, color='lightcoral')
+            ax2a.set_title('Top Variable Types', fontweight='bold')
+            ax2a.set_xlabel('Count')
+        if stats['variables_by_declaration']:
+            labels = list(stats['variables_by_declaration'].keys())
+            sizes = list(stats['variables_by_declaration'].values())
+            ax2b.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+            ax2b.set_title('Declaration Types', fontweight='bold')
+        plt.tight_layout()
+        canvas2 = FigureCanvasTkAgg(fig2, tab2)
+        canvas2.get_tk_widget().pack(fill="both", expand=True)
+
+        # Tab 3: Scope distribution
+        tab3 = notebook.add("Scope")
+        fig3, ax3 = plt.subplots(figsize=(8, 5))
+        if stats['procedures_by_scope']:
+            scopes = list(stats['procedures_by_scope'].keys())
+            counts = list(stats['procedures_by_scope'].values())
+            colors = ['#22c55e' if s == 'Public' else '#ef4444' if s == 'Private' else '#3b82f6' for s in scopes]
+            ax3.bar(scopes, counts, color=colors)
+            ax3.set_title('Procedures by Scope', fontsize=14, fontweight='bold')
+            ax3.set_ylabel('Count')
+        canvas3 = FigureCanvasTkAgg(fig3, tab3)
+        canvas3.get_tk_widget().pack(fill="both", expand=True)
+
+    def _export_excel(self):
+        if not self.analysis_results:
+            messagebox.showwarning("Warning", "Analyze code first")
+            return
+
+        try:
+            import pandas as pd
+        except ImportError:
+            messagebox.showerror("Error", "pandas not installed.\nInstall with: pip install pandas openpyxl")
+            return
+
+        output_path = filedialog.asksaveasfilename(
+            title="Export to Excel",
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("CSV files", "*.csv")]
+        )
+        if not output_path:
+            return
+
+        def do():
+            return self.analyzer.export_to_excel(self.analysis_results, output_path)
+
+        def done(success):
+            if success:
+                self.set_progress(1.0, f"Exported to {Path(output_path).name}")
+                messagebox.showinfo("Success", f"Exported to:\n{output_path}")
+                if self.config.config.export.open_after_export:
+                    webbrowser.open(output_path)
+            else:
+                messagebox.showerror("Error", "Export failed")
+
+        self.run_async(do, done)
+
+    def _copy_results(self):
+        content = self.result_text.get("1.0", "end-1c")
+        if content:
+            self.clipboard_clear()
+            self.clipboard_append(content)
+
+    def _save_results(self):
+        content = self.result_text.get("1.0", "end-1c")
+        if not content.strip():
+            messagebox.showwarning("Warning", "No results to save")
+            return
+        p = filedialog.asksaveasfilename(title="Save Results", defaultextension=".txt",
+                                          filetypes=[("Text", "*.txt"), ("All", "*.*")])
+        if p:
+            with open(p, 'w', encoding='utf-8') as f:
+                f.write(content)
+            messagebox.showinfo("Success", f"Saved to {p}")
+
+    def _browse_hex_file(self):
+        p = filedialog.askopenfilename(title="Select Binary File", filetypes=[("All files", "*.*")])
+        if p:
+            self.hex_file_var.set(p)
+
+    def _preview_hex(self):
+        if not hasattr(self, 'hex_file_var'):
+            return
+        file_path = self.hex_file_var.get()
+        if not file_path:
+            messagebox.showwarning("Warning", "Select a file first")
+            return
+
+        try:
+            max_bytes = int(self.hex_bytes_var.get())
+        except:
+            max_bytes = 512
+
+        hex_output = get_hex_preview(file_path, max_bytes)
+        self.hex_text.delete("1.0", "end")
+        self.hex_text.insert("1.0", hex_output)
+        self.set_progress(1.0, f"Hex preview: {Path(file_path).name}")
 
 
 class SettingsFrame(ctk.CTkFrame):
@@ -1115,20 +1644,22 @@ class MainWindow(ctk.CTk):
         t2 = self.tabs.add("Python Analyzer")
         t3 = self.tabs.add("Folder Scanner")
         t4 = self.tabs.add("VBA Optimizer")
-        t5 = self.tabs.add("Settings")
-        t6 = self.tabs.add("Logs")
+        t5 = self.tabs.add("VBA Analyzer")
+        t6 = self.tabs.add("Settings")
+        t7 = self.tabs.add("Logs")
         VBAExtractorFrame(t1).pack(fill="both", expand=True)
         PythonAnalyzerFrame(t2).pack(fill="both", expand=True)
         FolderScannerFrame(t3).pack(fill="both", expand=True)
         VBAOptimizerFrame(t4).pack(fill="both", expand=True)
-        SettingsFrame(t5, self).pack(fill="both", expand=True)
-        LogsFrame(t6).pack(fill="both", expand=True)
+        VBAAnalyzerFrame(t5).pack(fill="both", expand=True)
+        SettingsFrame(t6, self).pack(fill="both", expand=True)
+        LogsFrame(t7).pack(fill="both", expand=True)
         # Footer compact
         ftr = ctk.CTkFrame(main, height=22, fg_color=("gray90", "gray17"))
         ftr.pack(fill="x")
         ftr.pack_propagate(False)
         ctk.CTkLabel(ftr, text="Ready", font=ctk.CTkFont(size=9), text_color=("gray50", "gray60")).pack(side="left", padx=6, pady=2)
-        ctk.CTkLabel(ftr, text="F1=Help | Ctrl+1-4=Tabs | Ctrl+Q=Quit", font=ctk.CTkFont(size=8), text_color=("gray60", "gray50")).pack(side="right", padx=6, pady=2)
+        ctk.CTkLabel(ftr, text="F1=Help | Ctrl+1-5=Tabs | Ctrl+Q=Quit", font=ctk.CTkFont(size=8), text_color=("gray60", "gray50")).pack(side="right", padx=6, pady=2)
 
     def _shortcuts(self):
         self.bind("<F1>", lambda e: self._help())
@@ -1137,6 +1668,7 @@ class MainWindow(ctk.CTk):
         self.bind("<Control-2>", lambda e: self.tabs.set("Python Analyzer"))
         self.bind("<Control-3>", lambda e: self.tabs.set("Folder Scanner"))
         self.bind("<Control-4>", lambda e: self.tabs.set("VBA Optimizer"))
+        self.bind("<Control-5>", lambda e: self.tabs.set("VBA Analyzer"))
 
     def _theme(self, t):
         ctk.set_appearance_mode(t)
@@ -1157,13 +1689,14 @@ Tools:
 * Python Analyzer - Analyze Python code
 * Folder Scanner - Scan directories
 * VBA Optimizer - Optimize VBA code
+* VBA Analyzer - Advanced VBA analysis with graphs
 
 Shortcuts:
 * F1 - Help
 * Ctrl+Q - Quit
-* Ctrl+1-4 - Switch tabs
+* Ctrl+1-5 - Switch tabs
 
-Export: JSON, CSV, HTML
+Export: JSON, CSV, HTML, Excel
 Settings auto-saved.
         """
         ctk.CTkLabel(scroll, text=txt.strip(), font=ctk.CTkFont(size=10), justify="left").pack(anchor="w", pady=10)
