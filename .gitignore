@@ -1,17 +1,21 @@
-# Build artifacts
-build/
-dist/
-*.spec.bak
-
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.egg-info/
+*.egg
+
+# Build artifacts
+build/
+dist/
+*.spec
+*.exe
 
 # Virtual environments
-.venv/
 venv/
+.venv/
+env/
 ENV/
 
 # IDE
@@ -19,10 +23,21 @@ ENV/
 .vscode/
 *.swp
 *.swo
+*~
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Ruff
+.ruff_cache/
 
 # Logs
 *.log
@@ -30,7 +45,17 @@ Thumbs.db
 # Config (user-specific)
 .codeextractpro/
 
-# Test artifacts
-.pytest_cache/
-.coverage
-htmlcov/
+# Secrets
+.env
+*.pem
+*.key
+
+# Assistants / AI caches
+.claude/
+.cursor/
+tmpclaude-*
+
+# Backup / Temp
+*.bak
+*.backup
+*.tmp

@@ -113,6 +113,11 @@ def install_missing_deps():
 
 def main():
     """Main entry point."""
+    debug = os.environ.get("CODEEXTRACT_DEBUG", "0") == "1"
+    if debug:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+
     print("=" * 60)
     print(" CodeExtractPro v1.0 - Professional Code Extraction Suite")
     print("=" * 60)

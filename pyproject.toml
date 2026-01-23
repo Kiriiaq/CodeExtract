@@ -1,0 +1,62 @@
+[project]
+name = "code-extract-pro"
+version = "1.0.0"
+description = "CodeExtractPro - Professional Code Extraction & Analysis Suite"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Kiriiaq"}
+]
+keywords = ["code", "extraction", "analysis", "documentation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Documentation",
+]
+dependencies = [
+    "customtkinter>=5.2.0",
+    "oletools>=0.60.0",
+    "openpyxl>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+    "build",
+    "pyinstaller>=6.0.0",
+]
+windows = [
+    "pywin32>=306",
+]
+
+[project.urls]
+Homepage = "https://github.com/Kiriiaq/CodeExtract"
+Issues = "https://github.com/Kiriiaq/CodeExtract/issues"
+
+[project.scripts]
+code-extract = "main:main"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501", "B008", "SIM108"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"

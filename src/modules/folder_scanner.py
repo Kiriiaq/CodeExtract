@@ -249,7 +249,7 @@ class FolderScanner:
             except Exception as e:
                 return None, "binary", str(e)
 
-        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+        encodings = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252']
 
         for encoding in encodings:
             try:

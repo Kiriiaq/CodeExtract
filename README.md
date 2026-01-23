@@ -270,3 +270,46 @@ VBA extractor, Excel macro extractor, Office VBA tool, Python code analyzer, fol
 ---
 
 *Built with Python and CustomTkinter*
+
+---
+
+## Build Executables
+
+Build standalone Windows executables (requires PyInstaller):
+
+```bash
+pip install -e ".[dev]"
+
+# Release (no console window)
+pyinstaller --onefile --noconsole --name "codeextractpro-1.0.0-windows-release" --icon "assets/icon.ico" main.py
+
+# Debug (with console + verbose logs)
+set CODEEXTRACT_DEBUG=1
+pyinstaller --onefile --console --debug=all --name "codeextractpro-1.0.0-windows-debug" --icon "assets/icon.ico" main.py
+```
+
+Executables are automatically built and published via GitHub Releases on each tag .
+
+## Development
+
+```bash
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Lint
+ruff check .
+ruff format .
+
+# Run tests
+pytest
+```
+
+## Support
+
+If you find this project useful, consider supporting its development:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-ff5f5f?logo=ko-fi)](https://ko-fi.com/Kiriiaq)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
