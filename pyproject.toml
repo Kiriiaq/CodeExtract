@@ -51,6 +51,9 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 ignore = ["E501", "B008", "SIM108"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
